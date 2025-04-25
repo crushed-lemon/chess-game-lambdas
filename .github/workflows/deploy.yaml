@@ -1,0 +1,56 @@
+name: Deploy to Lambda
+
+on:
+  push:
+    paths:
+      - 'chess-connect-function'
+      - 'chess-disconnect-function'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: chess-connect-function
+            lambda_name: chessConnect
+          - module: chess-disconnect-function
+            lambda_name: chessDisconnect
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Java 8 and Maven
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: 'eu-north-1'
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^${{ matrix.module }}/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and Deploy Lambda
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          cd ${{ matrix.module }}
+          mvn clean package
+          
+          zip -j function.zip target/*.jar
+          
+          aws lambda update-function-code \
+            --function-name ${{ matrix.lambda_name }} \
+            --zip-file fileb://function.zip

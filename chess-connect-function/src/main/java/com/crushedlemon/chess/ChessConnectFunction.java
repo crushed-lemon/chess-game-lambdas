@@ -9,6 +9,15 @@ public class ChessConnectFunction implements RequestHandler<Map<String, Object>,
     @Override
     public Object handleRequest(Map<String, Object> event, Context context) {
         context.getLogger().log("User is connected!");
+        for (Map.Entry e : event.entrySet()) {
+            context.getLogger().log("========PARAM=========");
+            context.getLogger().log(e.getKey().toString());
+            context.getLogger().log(e.getValue().toString());
+            context.getLogger().log("****************");
+        }
+        context.getLogger().log("========CONTEXT=========");
+        context.getLogger().log(context.toString());
+        context.getLogger().log("****************");
         return Map.of("statusCode", 200);
     }
 }

@@ -13,7 +13,7 @@ public class ChessConnectFunction implements RequestHandler<Map<String, Object>,
             context.getLogger().log("========PARAM=========");
             context.getLogger().log(e.getKey().toString());
             context.getLogger().log(e.getValue().toString());
-            context.getLogger().log("*****************");
+            context.getLogger().log("****************");
         }
         context.getLogger().log("========CONTEXT=========");
         context.getLogger().log(context.toString());

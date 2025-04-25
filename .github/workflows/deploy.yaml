@@ -3,8 +3,8 @@ name: Deploy to Lambda
 on:
   push:
     paths:
-      - 'chess-connect-function'
-      - 'chess-disconnect-function'
+      - 'chess-connect-function/**'
+      - 'chess-disconnect-function/**'
 
 jobs:
   deploy:

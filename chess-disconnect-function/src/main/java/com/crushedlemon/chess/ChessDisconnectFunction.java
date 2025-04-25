@@ -9,7 +9,7 @@ public class ChessDisconnectFunction implements RequestHandler<Map<String, Objec
     @Override
     public Object handleRequest(Map<String, Object> event, Context context) {
         context.getLogger().log("User is now disconnected!");
-        context.getLogger().log("And we know which one");
+        context.getLogger().log("And we know which one also");
         return Map.of("statusCode", 200);
     }
 }

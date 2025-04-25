@@ -24,8 +24,22 @@ jobs:
       - name: Set up Java 8 and Maven
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
+
+      - name: Check Java Version
+        run: java -version
+
+      - name: Print JAVA_HOME
+        run: echo $JAVA_HOME
+
+      - name: Set up Maven
+        run: mvn --version
+
+      - name: Install Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install maven
 
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

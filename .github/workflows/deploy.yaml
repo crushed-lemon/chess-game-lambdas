@@ -43,6 +43,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install maven
 
+      - name: Set up Maven
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings> 
+                  <servers> 
+                    <server> 
+                      <id>github</id> 
+                      <username>crushed-lemon</username> 
+                      <password>${GITHUB_TOKEN}</password> 
+                    </server> 
+                  </servers> 
+                </settings>" > ~/.m2/settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PKG_PAT }}
+
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -58,6 +73,12 @@ jobs:
           else
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Build Commons Module
+        run: |
+          cd chess-lambda-commons
+          mvn clean install
+          cd ..
 
       - name: Build and Deploy Lambda
         if: steps.changes.outputs.changed == 'true'

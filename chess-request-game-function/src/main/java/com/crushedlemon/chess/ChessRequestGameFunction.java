@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
 import static com.crushedlemon.chess.commons.Utils.extractGamePreferences;
 import static com.crushedlemon.chess.commons.Utils.extractUserName;
@@ -35,8 +36,6 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
 
     @Override
     public Object handleRequest(Map<String, Object> event, Context context) {
-        // A common table used by many sections of the code
-
         String userName = extractUserName(event);
         GamePreferences gamePreferences = extractGamePreferences(event);
 
@@ -75,6 +74,25 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
             }
         }
         return Optional.empty();
+    }
+
+    private String getWhitePlayer(String userName, GamePreferences gamePreferences, Item waitingUser) {
+        PlayAs selfPlayAs = gamePreferences.getPlayAs();
+        PlayAs otherPlayAs = PlayAs.valueOf((String) waitingUser.get("playAs"));
+
+        if (selfPlayAs.equals(PlayAs.WHITE) || otherPlayAs.equals(PlayAs.BLACK)) {
+            return userName;
+        }
+        if (selfPlayAs.equals(PlayAs.BLACK) || otherPlayAs.equals(PlayAs.WHITE)) {
+            return getUserName(waitingUser);
+        }
+
+        int number = getRandomNumber();
+        if (number == 0) {
+            return userName;
+        } else {
+            return getUserName(waitingUser);
+        }
     }
 
     private String getSqsMessage(String whiteUser, String blackUser, GamePreferences gamePreferences) {
@@ -126,8 +144,9 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
         ));
     }
 
-    private String getWhitePlayer(String userName, GamePreferences gamePreferences, Item item) {
-        // TODO : Use preferences to determine white user
-        return userName;
+    private int getRandomNumber() {
+        // TODO : Don't initialize the random number generator here, inject it
+        Random random = new Random();
+        return random.nextInt(2);
     }
 }

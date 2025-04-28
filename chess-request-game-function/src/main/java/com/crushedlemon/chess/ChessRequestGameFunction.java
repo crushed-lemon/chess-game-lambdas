@@ -4,33 +4,47 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.crushedlemon.chess.commons.model.GamePreferences;
+import com.crushedlemon.chess.commons.model.PlayAs;
+import org.json.JSONObject;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
 public class ChessRequestGameFunction implements RequestHandler<Map<String, Object>, Object> {
 
+    private static final String SQS_URL = "";
     private final DynamoDB dynamoDb;
+    private final Table chessLobbyTable;
 
     ChessRequestGameFunction() {
         this.dynamoDb = new DynamoDB(AmazonDynamoDBClientBuilder.standard().build());
+        this.chessLobbyTable = dynamoDb.getTable("chess-lobby");
     }
 
     @Override
     public Object handleRequest(Map<String, Object> event, Context context) {
         // A common table used by many sections of the code
-        Table chessLobbyTable = dynamoDb.getTable("chess-lobby");
 
         String userName = extractUserName(event);
         GamePreferences gamePreferences = extractGamePreferences(event);
 
-        Optional<String> waitingUser = findWaitingUser(chessLobbyTable, gamePreferences);
+        Optional<Item> waitingUserOpt = findWaitingUser(gamePreferences);
 
-        if (waitingUser.isPresent()) {
-            // Pair these two users for a game
+        if (waitingUserOpt.isPresent()) {
+            // Pair these two users for a game, and remove them from lobby
+            removeUserFromLobby(waitingUserOpt.get());
+            String whitePlayer = getWhitePlayer(userName, gamePreferences, waitingUserOpt.get());
+            String blackPlayer = whitePlayer.equals(userName) ? getUserName(waitingUserOpt.get()) : userName;
+            sendToSqs(whitePlayer, blackPlayer, gamePreferences);
         } else {
             // Send this user to the lobby to wait for an appropriate partner
             chessLobbyTable.putItem(toItem(userName, gamePreferences));
@@ -38,23 +52,82 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
         return Map.of("statusCode", 200);
     }
 
-    private Optional<String> findWaitingUser(Table chessLobbyTable, GamePreferences gamePreferences) {
-        // TODO : Find a waiting user in the lobby
+    private void sendToSqs(String whiteUser, String blackUser, GamePreferences gamePreferences) {
+
+        JSONObject messageJson = new JSONObject();
+        messageJson.put("whiteUser", whiteUser);
+        messageJson.put("blackUser", blackUser);
+
+        JSONObject gameSettings = new JSONObject();
+        gameSettings.put("gameDuration", gamePreferences.getGameDuration().getDurationInSeconds());
+        gameSettings.put("incrementPerMove", gamePreferences.getIncrementPerMove().getIncrementInSeconds());
+
+        messageJson.put("gameSettings", gameSettings);
+
+        try (SqsClient sqsClient = SqsClient.builder().region(Region.EU_NORTH_1).build()) {
+            SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
+                    .queueUrl(SQS_URL)
+                    .messageBody(messageJson.toString())
+                    .build();
+
+            sqsClient.sendMessage(sendMsgRequest);
+        }
+    }
+
+    private void removeUserFromLobby(Item waitingUser) {
+        chessLobbyTable.deleteItem("userId", getUserName(waitingUser));
+    }
+
+    private Optional<Item> findWaitingUser(GamePreferences gamePreferences) {
+        QuerySpec querySpec = new QuerySpec()
+                .withKeyConditionExpression("gameDuration = :v_game_duration")
+                .withKeyConditionExpression("incrementPerMove = :v_increment_per_move")
+                .withValueMap(new ValueMap()
+                        .withInt(":v_connection_id", gamePreferences.getGameDuration().getDurationInSeconds())
+                        .withInt(":v_increment_per_move", gamePreferences.getIncrementPerMove().getIncrementInSeconds()));
+
+        Iterator<Item> iterator = chessLobbyTable.getIndex("gameDuration-incrementPerMove-index").query(querySpec).iterator();
+
+        while (iterator.hasNext()) {
+            Item otherUser = iterator.next();
+            PlayAs selfPlayAs = gamePreferences.getPlayAs();
+            PlayAs otherPlayAs = PlayAs.valueOf((String) otherUser.get("playAs"));
+            if (areCompatible(selfPlayAs, otherPlayAs)) {
+                return Optional.of(otherUser);
+            }
+        }
         return Optional.empty();
+    }
+
+    private String getUserName(Item waitingUser) {
+        return waitingUser.getString("userId");
+    }
+
+    private boolean areCompatible(PlayAs selfPlayAs, PlayAs otherPlayAs) {
+        if (selfPlayAs.equals(PlayAs.ANY) || otherPlayAs.equals(PlayAs.ANY)) {
+            return true;
+        }
+        return !selfPlayAs.equals(otherPlayAs);
     }
 
     private Item toItem(String userName, GamePreferences gamePreferences) {
         return Item.fromMap(Map.of(
                 "userId", userName,
-                "gameDuration", gamePreferences.getGameDuration().toString(),
-                "incrementPerMove", gamePreferences.getIncrementPerMove().toString(),
+                "gameDuration", gamePreferences.getGameDuration().getDurationInSeconds(),
+                "incrementPerMove", gamePreferences.getIncrementPerMove().getIncrementInSeconds(),
                 "playAs", gamePreferences.getPlayAs().toString()
         ));
     }
 
-    private GamePreferences extractGamePreferences(Map<String, Object> event) {
+    private static GamePreferences extractGamePreferences(Map<String, Object> event) {
         // TODO : Extract the Game preferences
         return GamePreferences.builder().build();
+    }
+
+
+    private String getWhitePlayer(String userName, GamePreferences gamePreferences, Item item) {
+        // TODO : Use preferences to determine white user
+        return userName;
     }
 
     private static String extractUserName(Map<String, Object> event) {

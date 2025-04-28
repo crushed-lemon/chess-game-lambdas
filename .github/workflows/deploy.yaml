@@ -74,15 +74,12 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Commons Module
+      - name: Build and Deploy Lambda
+        if: steps.changes.outputs.changed == 'true'
         run: |
           cd chess-lambda-commons
           mvn clean install
           cd ..
-
-      - name: Build and Deploy Lambda
-        if: steps.changes.outputs.changed == 'true'
-        run: |
           cd ${{ matrix.module }}
           mvn clean package
           

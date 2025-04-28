@@ -19,9 +19,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.crushedlemon.chess.commons.Utils.extractGamePreferences;
+import static com.crushedlemon.chess.commons.Utils.extractUserName;
+
 public class ChessRequestGameFunction implements RequestHandler<Map<String, Object>, Object> {
 
-    private static final String SQS_URL = "";
+    private static final String SQS_URL = "https://sqs.eu-north-1.amazonaws.com/610596007825/chess-paired-players";
     private final DynamoDB dynamoDb;
     private final Table chessLobbyTable;
 
@@ -44,38 +47,13 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
             removeUserFromLobby(waitingUserOpt.get());
             String whitePlayer = getWhitePlayer(userName, gamePreferences, waitingUserOpt.get());
             String blackPlayer = whitePlayer.equals(userName) ? getUserName(waitingUserOpt.get()) : userName;
-            sendToSqs(whitePlayer, blackPlayer, gamePreferences);
+            String message = getSqsMessage(whitePlayer, blackPlayer, gamePreferences);
+            sendToSqs(message);
         } else {
             // Send this user to the lobby to wait for an appropriate partner
             chessLobbyTable.putItem(toItem(userName, gamePreferences));
         }
         return Map.of("statusCode", 200);
-    }
-
-    private void sendToSqs(String whiteUser, String blackUser, GamePreferences gamePreferences) {
-
-        JSONObject messageJson = new JSONObject();
-        messageJson.put("whiteUser", whiteUser);
-        messageJson.put("blackUser", blackUser);
-
-        JSONObject gameSettings = new JSONObject();
-        gameSettings.put("gameDuration", gamePreferences.getGameDuration().getDurationInSeconds());
-        gameSettings.put("incrementPerMove", gamePreferences.getIncrementPerMove().getIncrementInSeconds());
-
-        messageJson.put("gameSettings", gameSettings);
-
-        try (SqsClient sqsClient = SqsClient.builder().region(Region.EU_NORTH_1).build()) {
-            SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
-                    .queueUrl(SQS_URL)
-                    .messageBody(messageJson.toString())
-                    .build();
-
-            sqsClient.sendMessage(sendMsgRequest);
-        }
-    }
-
-    private void removeUserFromLobby(Item waitingUser) {
-        chessLobbyTable.deleteItem("userId", getUserName(waitingUser));
     }
 
     private Optional<Item> findWaitingUser(GamePreferences gamePreferences) {
@@ -99,6 +77,35 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
         return Optional.empty();
     }
 
+    private String getSqsMessage(String whiteUser, String blackUser, GamePreferences gamePreferences) {
+        JSONObject messageJson = new JSONObject();
+        messageJson.put("whiteUser", whiteUser);
+        messageJson.put("blackUser", blackUser);
+
+        JSONObject gameSettings = new JSONObject();
+        gameSettings.put("gameDuration", gamePreferences.getGameDuration().getDurationInSeconds());
+        gameSettings.put("incrementPerMove", gamePreferences.getIncrementPerMove().getIncrementInSeconds());
+
+        messageJson.put("gameSettings", gameSettings);
+
+        return messageJson.toString();
+    }
+
+    private void sendToSqs(String message) {
+        try (SqsClient sqsClient = SqsClient.builder().region(Region.EU_NORTH_1).build()) {
+            SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
+                    .queueUrl(SQS_URL)
+                    .messageBody(message)
+                    .build();
+
+            sqsClient.sendMessage(sendMsgRequest);
+        }
+    }
+
+    private void removeUserFromLobby(Item waitingUser) {
+        chessLobbyTable.deleteItem("userId", getUserName(waitingUser));
+    }
+
     private String getUserName(Item waitingUser) {
         return waitingUser.getString("userId");
     }
@@ -119,20 +126,8 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
         ));
     }
 
-    private static GamePreferences extractGamePreferences(Map<String, Object> event) {
-        // TODO : Extract the Game preferences
-        return GamePreferences.builder().build();
-    }
-
-
     private String getWhitePlayer(String userName, GamePreferences gamePreferences, Item item) {
         // TODO : Use preferences to determine white user
         return userName;
-    }
-
-    private static String extractUserName(Map<String, Object> event) {
-        // For testing purposes, passing the username in query params. Change it to JWT-based identity.
-        Map<String, Object> queryStringParameters = (Map<String, Object>) event.get("queryStringParameters");
-        return (String) queryStringParameters.get("userName");
     }
 }

@@ -19,6 +19,7 @@
     <module>chess-connect-function</module>
     <module>chess-disconnect-function</module>
     <module>chess-request-game-function</module>
+    <module>chess-lambda-commons</module>
   </modules>
 
 </project>

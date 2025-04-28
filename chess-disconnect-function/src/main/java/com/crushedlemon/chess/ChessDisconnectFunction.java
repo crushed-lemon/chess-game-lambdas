@@ -12,6 +12,8 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import java.util.Iterator;
 import java.util.Map;
 
+import static com.crushedlemon.chess.commons.Utils.extractConnectionId;
+
 public class ChessDisconnectFunction implements RequestHandler<Map<String, Object>, Object> {
 
     private final DynamoDB dynamoDB;
@@ -39,11 +41,5 @@ public class ChessDisconnectFunction implements RequestHandler<Map<String, Objec
         if (iterator.hasNext()) {
             this.table.deleteItem("userId", iterator.next().get("userId"));
         }
-    }
-
-    // TODO : move this to a common class
-    private static String extractConnectionId(Map<String, Object> event) {
-        Map<String, Object> requestContext = (Map<String, Object>) event.get("requestContext");
-        return (String) requestContext.get("connectionId");
     }
 }

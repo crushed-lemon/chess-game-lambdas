@@ -8,6 +8,9 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import java.util.Map;
 
+import static com.crushedlemon.chess.commons.Utils.extractConnectionId;
+import static com.crushedlemon.chess.commons.Utils.extractUserName;
+
 public class ChessConnectFunction implements RequestHandler<Map<String, Object>, Object> {
 
     private final DynamoDB dynamoDB;
@@ -30,15 +33,4 @@ public class ChessConnectFunction implements RequestHandler<Map<String, Object>,
         this.table.putItem(Item.fromMap(Map.of("userId", userName, "connectionId", connectionId, "status", "CONNECTED")));
     }
 
-    // TODO : move this to a common class
-    private static String extractConnectionId(Map<String, Object> event) {
-        Map<String, Object> requestContext = (Map<String, Object>) event.get("requestContext");
-        return (String) requestContext.get("connectionId");
-    }
-
-    private static String extractUserName(Map<String, Object> event) {
-        // For testing purposes, passing the username in query params. Change it to JWT-based identity.
-        Map<String, Object> queryStringParameters = (Map<String, Object>) event.get("queryStringParameters");
-        return (String) queryStringParameters.get("userName");
-    }
 }

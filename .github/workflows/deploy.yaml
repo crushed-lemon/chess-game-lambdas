@@ -14,6 +14,8 @@ jobs:
             lambda_name: chessConnect
           - module: chess-disconnect-function
             lambda_name: chessDisconnect
+          - module: chess-request-game-function
+            lambda_name: chessRequestGame
 
     steps:
       - name: Checkout code

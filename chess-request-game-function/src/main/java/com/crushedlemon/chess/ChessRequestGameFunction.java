@@ -60,7 +60,7 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
                 .withKeyConditionExpression("gameDuration = :v_game_duration")
                 .withKeyConditionExpression("incrementPerMove = :v_increment_per_move")
                 .withValueMap(new ValueMap()
-                        .withInt(":v_connection_id", gamePreferences.getGameDuration().getDurationInSeconds())
+                        .withInt(":v_game_duration", gamePreferences.getGameDuration().getDurationInSeconds())
                         .withInt(":v_increment_per_move", gamePreferences.getIncrementPerMove().getIncrementInSeconds()));
 
         Iterator<Item> iterator = chessLobbyTable.getIndex("gameDuration-incrementPerMove-index").query(querySpec).iterator();

@@ -67,13 +67,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: 'eu-north-1'
 
-      - name: Build all lambdas and deploy
+      - name: Build all lambdas
         run: |
           mvn clean install
+
+      - name: Find Jar name
+        id: find_jar
+        run: |
           cd ${{ matrix.module }}
-          
-          zip -j function.zip $(ls target/*.jar | grep -v original)
-          
+          JAR_NAME=$(find target -maxdepth 1 -name "*.jar" ! -name "*original*" | head -n 1)
+          echo "Found jar: $JAR_NAME"
+          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload jar to AWS
+        run: |          
           aws lambda update-function-code \
             --function-name ${{ matrix.lambda_name }} \
-            --zip-file fileb://function.zip
+            --zip-file fileb://${{ matrix.module }}/${{ steps.find_jar.outputs.jar_name }}

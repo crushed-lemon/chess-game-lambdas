@@ -29,7 +29,7 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
     private final DynamoDB dynamoDb;
     private final Table chessLobbyTable;
 
-    ChessRequestGameFunction() {
+    public ChessRequestGameFunction() {
         this.dynamoDb = new DynamoDB(AmazonDynamoDBClientBuilder.standard().build());
         this.chessLobbyTable = dynamoDb.getTable("chess-lobby");
     }

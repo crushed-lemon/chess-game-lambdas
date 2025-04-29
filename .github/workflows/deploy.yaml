@@ -16,6 +16,8 @@ jobs:
             lambda_name: chessDisconnect
           - module: chess-request-game-function
             lambda_name: chessRequestGame
+          - module: chess-on-players-paired-function
+            lambda_name: chessOnPlayersPaired
 
     steps:
       - name: Checkout code
@@ -65,23 +67,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: 'eu-north-1'
 
-      - name: Detect changes
-        id: changes
+      - name: Build all lambdas and deploy
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^${{ matrix.module }}/"; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build and Deploy Lambda
-        if: steps.changes.outputs.changed == 'true'
-        run: |
-          cd chess-lambda-commons
           mvn clean install
-          cd ..
           cd ${{ matrix.module }}
-          mvn clean package
           
           zip -j function.zip target/*.jar
           

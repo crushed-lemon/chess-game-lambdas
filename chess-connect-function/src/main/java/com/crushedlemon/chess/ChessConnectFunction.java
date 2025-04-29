@@ -24,6 +24,7 @@ public class ChessConnectFunction implements RequestHandler<Map<String, Object>,
     @Override
     public Object handleRequest(Map<String, Object> event, Context context) {
         // no change
+        context.getLogger().log(event.toString());
         String connectionId = extractConnectionId(event);
         String userName = extractUserName(event);
         saveConnection(userName, connectionId);

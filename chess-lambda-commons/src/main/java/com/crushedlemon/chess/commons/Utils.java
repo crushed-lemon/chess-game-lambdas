@@ -16,14 +16,20 @@ public class Utils {
     }
 
     public static String extractUserName(Map<String, Object> event) {
-        // For testing purposes, passing the username in request body. Change it to JWT-based identity.
-        String bodyJson = (String) event.get("body");
-        try {
-            Map<String, Object> bodyMap = (Map<String, Object>) objectMapper.readValue(bodyJson, Map.class);
-            return  (String) bodyMap.get("user");
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+        // For testing purposes, passing the username in query params. Change it to JWT-based identity.
+        Map<String, Object> queryStringParameters = (Map<String, Object>) event.get("queryStringParameters");
+        String username = (String) queryStringParameters.get("userName");
+        if (username.isBlank()) {
+            // For testing purposes, passing the username in request body. Change it to JWT-based identity.
+            String bodyJson = (String) event.get("body");
+            try {
+                Map<String, Object> bodyMap = (Map<String, Object>) objectMapper.readValue(bodyJson, Map.class);
+                return  (String) bodyMap.get("userName");
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
+        return username;
     }
 
     public static GamePreferences extractGamePreferences(Map<String, Object> event) {

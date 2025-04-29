@@ -18,8 +18,7 @@ public class Utils {
     public static String extractUserName(Map<String, Object> event) {
         // For testing purposes, passing the username in query params. Change it to JWT-based identity.
         Map<String, Object> queryStringParameters = (Map<String, Object>) event.get("queryStringParameters");
-        String username = (String) queryStringParameters.get("userName");
-        if (username.isBlank()) {
+        if (queryStringParameters == null) {
             // For testing purposes, passing the username in request body. Change it to JWT-based identity.
             String bodyJson = (String) event.get("body");
             try {
@@ -29,7 +28,7 @@ public class Utils {
                 throw new RuntimeException(e);
             }
         }
-        return username;
+        return (String) queryStringParameters.get("userName");
     }
 
     public static GamePreferences extractGamePreferences(Map<String, Object> event) {

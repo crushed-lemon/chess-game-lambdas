@@ -72,7 +72,7 @@ jobs:
           mvn clean install
           cd ${{ matrix.module }}
           
-          zip -j function.zip target/*.jar
+          zip -j function.zip $(ls target/*.jar | grep -v original)
           
           aws lambda update-function-code \
             --function-name ${{ matrix.lambda_name }} \

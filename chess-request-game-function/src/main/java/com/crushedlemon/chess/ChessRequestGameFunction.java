@@ -57,8 +57,7 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
 
     private Optional<Item> findWaitingUser(GamePreferences gamePreferences) {
         QuerySpec querySpec = new QuerySpec()
-                .withKeyConditionExpression("gameDuration = :v_game_duration")
-                .withKeyConditionExpression("incrementPerMove = :v_increment_per_move")
+                .withKeyConditionExpression("gameDuration = :v_game_duration AND incrementPerMove = :v_increment_per_move")
                 .withValueMap(new ValueMap()
                         .withInt(":v_game_duration", gamePreferences.getGameDuration().getDurationInSeconds())
                         .withInt(":v_increment_per_move", gamePreferences.getIncrementPerMove().getIncrementInSeconds()));

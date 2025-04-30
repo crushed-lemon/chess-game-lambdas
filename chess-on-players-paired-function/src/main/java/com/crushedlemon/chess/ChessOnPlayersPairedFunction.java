@@ -22,7 +22,7 @@ import java.util.UUID;
 public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Void> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String CONNECTIONS_URI = "https://wec2i3hiw3.execute-api.eu-north-1.amazonaws.com/production/@connections";
+    private static final String CONNECTIONS_URI = "https://wec2i3hiw3.execute-api.eu-north-1.amazonaws.com/production";
 
     @Override
     public Void handleRequest(SQSEvent event, Context context) {

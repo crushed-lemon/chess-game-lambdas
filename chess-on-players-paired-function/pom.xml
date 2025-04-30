@@ -37,6 +37,12 @@
             <artifactId>aws-lambda-java-events</artifactId>
             <version>3.11.1</version>
         </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apigatewaymanagementapi</artifactId>
+            <version>2.25.11</version> <!-- Use latest compatible version -->
+        </dependency>
+
     </dependencies>
 
     <properties>

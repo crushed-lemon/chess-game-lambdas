@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import static java.util.Map.entry;
+
 public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Void> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -48,16 +50,22 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
                 String whiteConnectionId = getConnectionId(dynamoDB, whiteUser);
                 String blackConnectionId = getConnectionId(dynamoDB, blackUser);
 
-                Item item = Item.fromMap(Map.of(
-                        "gameId", gameId,
-                        "whiteUser", whiteUser,
-                        "blackUser", blackUser,
-                        "whiteConnectionId", whiteConnectionId,
-                        "blackConnectionId", blackConnectionId,
-                        "gameDuration", gameDuration,
-                        "incrementPerMove", incrementPerMove,
-                        "startTime", startTime,
-                        "gameStatus", "ONGOING"
+                Item item = Item.fromMap(
+                        Map.ofEntries(
+                                entry("gameId", gameId),
+                                entry("whiteUser", whiteUser),
+                                entry("blackUser", blackUser),
+                                entry("whiteConnectionId", whiteConnectionId),
+                                entry("blackConnectionId", blackConnectionId),
+                                entry("gameDuration", gameDuration),
+                                entry("incrementPerMove", incrementPerMove),
+                                entry("startTime", startTime),
+                                entry("gameState", "ONGOING"),
+                                entry("gameType", "GAME_TYPE_CLASSIC"),
+                                entry("gameResult", "GAME_RESULT_UNKNOWN"),
+                                entry("board", "RNBQKBNRPPPPPPPPXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXpppppppprnbqkbnr"),
+                                entry("flags", 15),
+                                entry("winnerId", "")
                 ));
 
                 chessGamesTable.putItem(item);

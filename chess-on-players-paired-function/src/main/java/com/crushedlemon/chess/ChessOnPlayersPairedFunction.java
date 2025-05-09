@@ -70,9 +70,8 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
 
                 chessGamesTable.putItem(item);
 
-                String startGameMessage = buildStartGameMessage(gameId);
-                sendStartGameMessage(blackConnectionId, startGameMessage);
-                sendStartGameMessage(whiteConnectionId, startGameMessage);
+                sendStartGameMessage(blackConnectionId, buildStartGameMessage(gameId, "BLACK"));
+                sendStartGameMessage(whiteConnectionId, buildStartGameMessage(gameId, "WHITE"));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
@@ -98,9 +97,9 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
         }
     }
 
-    private String buildStartGameMessage(String gameId) {
+    private String buildStartGameMessage(String gameId, String color) {
         try {
-            return objectMapper.writeValueAsString(Map.of("action", "gameStarted", "gameId", gameId));
+            return objectMapper.writeValueAsString(Map.of("action", "gameStarted", "gameId", gameId, "color", color));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

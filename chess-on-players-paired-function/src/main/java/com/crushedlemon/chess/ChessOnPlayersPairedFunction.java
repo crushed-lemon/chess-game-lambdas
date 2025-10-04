@@ -1,5 +1,6 @@
 package com.crushedlemon.chess;
 
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient;
 import software.amazon.awssdk.services.apigatewaymanagementapi.model.PostToConnectionRequest;
 import software.amazon.awssdk.services.apigatewaymanagementapi.model.PostToConnectionResponse;
@@ -17,10 +18,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Map.entry;
 
+@Slf4j
 public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Void> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -31,32 +35,32 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
         for (SQSEvent.SQSMessage message : event.getRecords()) {
             String body = message.getBody();
             context.getLogger().log("Received message: " + body);
+            log.info("ChessOnPlayersPairedFunction::rawMessage = {}", body);
             try {
                 Map<String, Object> messageMap = (Map<String, Object>) objectMapper.readValue(body, Map.class);
                 String whiteUser = (String) messageMap.get("whiteUser");
                 String blackUser = (String) messageMap.get("blackUser");
+                log.info("Pairing {} and {}", whiteUser, blackUser);
 
                 Map<String, Object> gameSettingsMap = (Map<String, Object>) messageMap.get("gameSettings");
                 Integer gameDuration = (Integer) gameSettingsMap.get("gameDuration");
                 Integer incrementPerMove = (Integer) gameSettingsMap.get("incrementPerMove");
 
                 String gameId = UUID.randomUUID().toString();
+                log.info("Paired {} and {} in game id {}", whiteUser, blackUser, gameId);
 
                 DynamoDB dynamoDB = new DynamoDB(AmazonDynamoDBClientBuilder.standard().build());
                 Table chessGamesTable = dynamoDB.getTable("chess-games");
 
                 Long startTime = Instant.now().toEpochMilli();
 
-                String whiteConnectionId = getConnectionId(dynamoDB, whiteUser);
-                String blackConnectionId = getConnectionId(dynamoDB, blackUser);
-
                 Item item = Item.fromMap(
                         Map.ofEntries(
                                 entry("gameId", gameId),
                                 entry("whiteUser", whiteUser),
                                 entry("blackUser", blackUser),
-                                entry("whiteConnectionId", whiteConnectionId),
-                                entry("blackConnectionId", blackConnectionId),
+                                //entry("whiteConnectionId", whiteConnectionId),
+                                //entry("blackConnectionId", blackConnectionId),
                                 entry("gameDuration", gameDuration),
                                 entry("incrementPerMove", incrementPerMove),
                                 entry("startTime", startTime),
@@ -70,13 +74,19 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
 
                 chessGamesTable.putItem(item);
 
-                sendStartGameMessage(blackConnectionId, buildStartGameMessage(gameId, "BLACK"));
-                sendStartGameMessage(whiteConnectionId, buildStartGameMessage(gameId, "WHITE"));
+                sendStartGameMessages(dynamoDB, Map.of("WHITE", whiteUser, "BLACK", blackUser), gameId);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
         }
         return null;
+    }
+
+    private void sendStartGameMessages(DynamoDB dynamoDB, Map<String, String> userMap, String gameId) {
+        for (Map.Entry<String, String> e : userMap.entrySet()) {
+            Optional<String> whiteConnectionId = getConnectionId(dynamoDB, e.getValue());
+            whiteConnectionId.ifPresent(s -> sendStartGameMessage(s, buildStartGameMessage(gameId, e.getKey())));
+        }
     }
 
     private void sendStartGameMessage(String connectionId, String startGameMessage) {
@@ -91,9 +101,9 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
 
         try {
             PostToConnectionResponse response = client.postToConnection(postRequest);
-            System.out.println("Message sent! Status Code: " + response.sdkHttpResponse().statusCode());
+            log.info("Message sent! Status Code: {}", response.sdkHttpResponse().statusCode());
         } catch (Exception e) {
-            System.err.println("Error sending message: " + e.getMessage());
+            log.error("Error sending message: {}", e.getMessage());
         }
     }
 
@@ -105,9 +115,12 @@ public class ChessOnPlayersPairedFunction implements RequestHandler<SQSEvent, Vo
         }
     }
 
-    private String getConnectionId(DynamoDB dynamoDB, String user) {
+    private Optional<String> getConnectionId(DynamoDB dynamoDB, String user) {
         Table chessConnectionsTable = dynamoDB.getTable("chess-connections");
         Item item = chessConnectionsTable.getItem("userId", user);
-        return (String) item.get("connectionId");
+        if(Objects.isNull(item)) {
+            return Optional.empty();
+        }
+        return Optional.of((String) item.get("connectionId"));
     }
 }

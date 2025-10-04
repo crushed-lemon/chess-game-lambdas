@@ -10,6 +10,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.crushedlemon.chess.commons.model.GamePreferences;
 import com.crushedlemon.chess.commons.model.PlayAs;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -23,6 +24,7 @@ import java.util.Random;
 import static com.crushedlemon.chess.commons.Utils.extractGamePreferences;
 import static com.crushedlemon.chess.commons.Utils.extractUserName;
 
+@Slf4j
 public class ChessRequestGameFunction implements RequestHandler<Map<String, Object>, Object> {
 
     private static final String SQS_URL = "https://sqs.eu-north-1.amazonaws.com/610596007825/chess-paired-players";
@@ -39,9 +41,12 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
         String userName = extractUserName(event);
         GamePreferences gamePreferences = extractGamePreferences(event);
 
+        log.info("{} is requesting a game with preferences : {}", userName, gamePreferences);
+
         Optional<Item> waitingUserOpt = findWaitingUser(gamePreferences);
 
         if (waitingUserOpt.isPresent()) {
+            log.info("{} was waiting", waitingUserOpt.get());
             // Pair these two users for a game, and remove them from lobby
             removeUserFromLobby(waitingUserOpt.get());
             String whitePlayer = getWhitePlayer(userName, gamePreferences, waitingUserOpt.get());
@@ -50,6 +55,7 @@ public class ChessRequestGameFunction implements RequestHandler<Map<String, Obje
             sendToSqs(message);
         } else {
             // Send this user to the lobby to wait for an appropriate partner
+            log.info("nobody was waiting, sending {} to lobby", userName);
             chessLobbyTable.putItem(toItem(userName, gamePreferences));
         }
         return Map.of("statusCode", 200);
